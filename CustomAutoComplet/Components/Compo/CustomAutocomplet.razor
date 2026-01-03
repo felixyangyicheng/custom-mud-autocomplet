@@ -1,0 +1,52 @@
+﻿@typeparam TItem
+
+<MudPaper Class="stream-autocomplete" Style="position:relative">
+    <MudTextField T="string"
+                  @bind-Value="_searchText"
+
+                  Immediate="true"
+                  Disabled="Disabled"
+                  DebounceInterval="DebounceInterval"
+                  Placeholder="Placeholder"
+                  Clearable="Clearable"
+                  OnClearButtonClick="Clear"
+                  OnDebounceIntervalElapsed="HandleSearchAsync"
+                  @onkeydown="OnKeyDown" />
+
+    @if (_open)
+    {
+        <MudPaper Class="mt-1" Elevation="8"
+                  Style="@($"position:absolute; width:100%; z-index:20; max-height:{MaxHeight}; overflow-y:auto")">
+            @if (_loading && LoadingTemplate != null)
+            {
+                @LoadingTemplate
+            }
+            else if (!_items.Any() && !_loading && EmptyTemplate != null)
+            {
+                @EmptyTemplate
+            }
+            else
+            {
+                <MudList T="TItem" Dense="true">
+                    <Virtualize Items="_items" Context="item">
+                        <MudListItem T="TItem"
+                                     Class="GetItemClass(item)"
+                                     @onmouseover="() => _highlighted = item"
+                                     OnClick="() => SelectAsync(item)">
+                            @ItemTemplate(item)
+                        </MudListItem>
+                    </Virtualize>
+                </MudList>
+            }
+
+            @if (_error != null && ErrorTemplate != null)
+            {
+                @ErrorTemplate(_error)
+            }
+        </MudPaper>
+    }
+</MudPaper>
+
+@code {
+
+}
