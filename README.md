@@ -352,3 +352,175 @@ public async IAsyncEnumerable<User> StreamUsersAsync(
 
 ❌ pas de recherche full-text ici
 
+
+
+
+
+1️⃣ 显示「命中的字段」（Badge：Email / 名字 / Guid）
+
+❓为什么要做这个？
+
+
+
+用户搜索 jack 时，可能命中：
+
+
+
+FirstName = Jackson
+
+
+
+LastName = Jackman
+
+
+
+Email = jack@mail.com
+
+
+
+Guid = jack-xxxx
+
+
+
+👉 用户不知道是哪一列命中的，会很困惑
+
+
+
+优秀 UX：要告诉用户“为什么这个结果会出现”
+
+
+
+✅ 正确做法（核心思想）
+
+❌ 不要在 UI 自己判断
+
+✅ 让 SQL 告诉你：是哪一列匹配的
+
+🧠 SQL 思路（不是代码细节）
+
+
+
+在 SQL 里加一个 计算列：
+
+
+
+CASE
+
+&nbsp;   WHEN FirstName LIKE @kw + '%' THEN 'FirstName'
+
+&nbsp;   WHEN LastName  LIKE @kw + '%' THEN 'LastName'
+
+&nbsp;   WHEN Email     LIKE @kw + '%' THEN 'Email'
+
+&nbsp;   WHEN GuidText  LIKE @kw + '%' THEN 'Guid'
+
+END AS MatchType
+
+
+
+
+
+👉 每一行都会多一个字段：
+
+MatchType = "Email" / "FirstName" / ...
+
+
+
+🎨 UI 表现（MudBlazor）
+
+
+
+在 ItemTemplate 里：
+
+
+
+左边：用户信息
+
+
+
+右边：一个 MudChip
+
+
+
+Kelly Aaliyah        \[LastName]
+
+aaliyah@mail.com     \[Email]
+
+
+
+
+
+👉 用户一眼就懂
+
+
+
+2️⃣ 给结果打「相关度分数」（Scoring）
+
+❓为什么要打分？
+
+
+
+不是所有匹配都一样重要：
+
+
+
+搜索	最想要
+
+jack	FirstName = Jack
+
+kel	LastName = Kelly
+
+@gm	Email
+
+f3a	Guid
+
+
+
+👉 排序不能只靠字母顺序
+
+
+
+✅ 正确设计方式
+
+在 SQL 里算分数（不是在 C#）
+
+完全匹配       = 100 分
+
+前缀匹配       = 90 分
+
+Email 前缀     = 80 分
+
+Guid 前缀      = 70 分
+
+
+
+🧠 好处
+
+
+
+SQL 一次完成
+
+
+
+排序稳定
+
+
+
+UI 不用管业务逻辑
+
+
+
+以后可以微调权重
+
+
+
+🎯 最终排序逻辑
+
+ORDER BY Score DESC, FirstName
+
+
+
+
+
+👉 最相关的永远排在最前
+

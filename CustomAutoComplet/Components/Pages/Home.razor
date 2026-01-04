@@ -10,7 +10,7 @@
 
     <MudText Typo="Typo.h6">Rechercher un utilisateur</MudText>
 
-    <CustomAutocomplet TItem="User"
+    <CustomAutocomplet TItem="UserResultWithScore"
                         @bind-Value="_selectedUser"
                         SearchFunc="SearchUsers"
                         Placeholder="Tapez un nom..."
@@ -21,8 +21,20 @@
         <ItemTemplate Context="user">
             <MudText>@user.FirstName, @user.LastName, @user.Email</MudText>
             <MudText> @user.Guid</MudText>
-        </ItemTemplate>
 
+    <div class="d-flex align-center justify-space-between w-100">
+        <div>
+            <MudText>@user.DisplayName</MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                @user.Email
+            </MudText>
+        </div>
+
+                <MudChip T="UserResultWithScore" Size="Size.Small" Color="@(user.Score > 90 ? Color.Success : Color.Default)" Variant="Variant.Outlined">
+            @user.MatchType @user.Score %
+        </MudChip>
+    </div>
+</ItemTemplate>
         <LoadingTemplate>
             <MudProgressLinear Indeterminate />
         </LoadingTemplate>
@@ -54,12 +66,12 @@
 </MudPaper>
 
 @code {
-    private User _selectedUser;
+    private UserResultWithScore _selectedUser;
 
-    private IAsyncEnumerable<User> SearchUsers(
+    private IAsyncEnumerable<UserResultWithScore> SearchUsers(
         string text,
         CancellationToken ct)
     {
-        return UserService.StreamUsersAsync(text, ct);
+        return UserService.StreamUsersWithScoreAsync(text, ct);
     }
 }

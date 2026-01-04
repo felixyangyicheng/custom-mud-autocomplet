@@ -17,5 +17,8 @@ public class UserService:IUserService
     {
         return _repo.StreamUsersAsync(keyword, ct);
     }
-
+    public IAsyncEnumerable<UserResultWithScore> StreamUsersWithScoreAsync(string keyword, CancellationToken ct)
+    {
+        return _repo.StreamUsersWithScoreAsync(keyword, ct);
+    }
 }

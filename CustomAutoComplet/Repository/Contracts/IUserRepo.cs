@@ -6,4 +6,5 @@ namespace CustomAutoComplet.Repository.Contracts;
 public interface IUserRepo
 {
     IAsyncEnumerable<User> StreamUsersAsync( string keyword, CancellationToken ct);
+    IAsyncEnumerable<UserResultWithScore> StreamUsersWithScoreAsync( string keyword, CancellationToken ct);
 }
