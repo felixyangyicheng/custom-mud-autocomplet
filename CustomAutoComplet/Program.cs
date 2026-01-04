@@ -1,7 +1,8 @@
 using CustomAutoComplet.Components;
 using CustomAutoComplet.Repository.Contracts;
 using CustomAutoComplet.Repository.Implementations;
-using CustomAutoComplet.Services;
+using CustomAutoComplet.Services.Contracts;
+using CustomAutoComplet.Services.Implementations;
 using MudBlazor.Services;
 
 namespace CustomAutoComplet
@@ -11,7 +12,7 @@ namespace CustomAutoComplet
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
-            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")??throw new NullReferenceException("chaine de connexion sql est nulle");
+            var connectionString = builder.Configuration.GetConnectionString("DBConnection") ??throw new NullReferenceException("chaine de connexion sql est nulle");
 
             builder.Services.AddSingleton<ISqlConnectionFactory>(
                 _ => new SqlConnectionFactory(connectionString));
