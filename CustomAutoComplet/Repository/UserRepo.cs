@@ -1,5 +1,5 @@
 ﻿namespace CustomAutoComplet.Repository;
 
-public class UserRepo
+public class UserRepo : IUserRepo
 {
 }

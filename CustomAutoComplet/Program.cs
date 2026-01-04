@@ -1,4 +1,6 @@
 using CustomAutoComplet.Components;
+using CustomAutoComplet.Repository;
+using CustomAutoComplet.Services;
 using MudBlazor.Services;
 
 namespace CustomAutoComplet
@@ -15,7 +17,8 @@ namespace CustomAutoComplet
             // Add services to the container.
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
-
+            builder.Services.AddScoped<IUserService, UserService>();
+            builder.Services.AddScoped<IUserRepo, UserRepo>();
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.

@@ -1,5 +1,5 @@
 ﻿namespace CustomAutoComplet.Services;
 
-public class UserService
+public class UserService:IUserService
 {
 }
