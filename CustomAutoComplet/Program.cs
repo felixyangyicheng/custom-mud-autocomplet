@@ -12,7 +12,16 @@ namespace CustomAutoComplet
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
-            var connectionString = builder.Configuration.GetConnectionString("DBConnection") ??throw new NullReferenceException("chaine de connexion sql est nulle");
+
+            // Debug : afficher toutes les clés disponibles
+            var config = builder.Configuration;
+            Console.WriteLine("=== ConnectionStrings disponibles ===");
+            foreach (var cs in config.GetSection("ConnectionStrings").GetChildren())
+            {
+                Console.WriteLine($"{cs.Key} = {cs.Value}");
+            }
+            var connectionString = config.GetConnectionString("DefaultConnection")
+     ?? throw new InvalidOperationException("Chaîne de connexion 'DBConnection' non trouvée dans appsettings.json");
 
             builder.Services.AddSingleton<ISqlConnectionFactory>(
                 _ => new SqlConnectionFactory(connectionString));
