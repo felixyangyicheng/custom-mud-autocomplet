@@ -524,3 +524,7 @@ ORDER BY Score DESC, FirstName
 
 👉 最相关的永远排在最前
 
+
+
+https://zetbit.tech/categories/asp-dot-net-core/39/display-live-data-from-database-in-blazor-sqltabledependency-and-signalr
+
