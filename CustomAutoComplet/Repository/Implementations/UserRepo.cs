@@ -3,6 +3,8 @@ using CustomAutoComplet.Repository.Contracts;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using System.Runtime.CompilerServices;
+using static MudBlazor.CategoryTypes;
+using static MudBlazor.Icons;
 
 namespace CustomAutoComplet.Repository.Implementations;
 
@@ -16,6 +18,9 @@ public class UserRepo : IUserRepo
         _connectionFactory = connectionFactory;
         _logger = logger;
     }
+
+    //SELECT name AS DatabaseName, is_broker_enabled FROM sys.databases; => verifie si Broker activé
+    //ALTER DATABASE DatabaseName SET ENABLE_BROKER; =>  activer Broker
     public async IAsyncEnumerable<UserResultWithScore> StreamUsersWithScoreAsync(
     string keyword,
     [EnumeratorCancellation] CancellationToken ct)
@@ -71,6 +76,21 @@ public class UserRepo : IUserRepo
         while (await reader.ReadAsync(ct))
         {
             yield return parser(reader);
+        }
+    }
+
+
+    public async Task<List<User>> GetUsersAsync()
+    {
+        const string query = "SELECT TOP(50) * FROM  dbo.[User];";
+
+        await using var conn =
+           _connectionFactory.CreateConnection() as SqlConnection;
+
+        await conn.OpenAsync();
+        {
+            var customers = await conn.QueryAsync<User>(query);
+            return customers.AsList();
         }
     }
     public async IAsyncEnumerable<User> StreamUsersAsync(

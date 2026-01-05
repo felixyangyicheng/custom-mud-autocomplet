@@ -1,8 +1,10 @@
 using CustomAutoComplet.Components;
+using CustomAutoComplet.Hubs;
 using CustomAutoComplet.Repository.Contracts;
 using CustomAutoComplet.Repository.Implementations;
 using CustomAutoComplet.Services.Contracts;
 using CustomAutoComplet.Services.Implementations;
+
 using MudBlazor.Services;
 
 namespace CustomAutoComplet
@@ -23,6 +25,7 @@ namespace CustomAutoComplet
             var connectionString = config.GetConnectionString("DefaultConnection")
      ?? throw new InvalidOperationException("Chaîne de connexion 'DBConnection' non trouvée dans appsettings.json");
 
+   
             builder.Services.AddSingleton<ISqlConnectionFactory>(
                 _ => new SqlConnectionFactory(connectionString));
             // Add MudBlazor services
@@ -33,6 +36,10 @@ namespace CustomAutoComplet
                 .AddInteractiveServerComponents();
             builder.Services.AddScoped<IUserService, UserService>();
             builder.Services.AddScoped<IUserRepo, UserRepo>();
+
+
+            builder.Services.AddSignalR();
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -45,8 +52,8 @@ namespace CustomAutoComplet
 
             app.UseHttpsRedirection();
 
+            app.MapHub<UserHub>("/userHub");
             app.UseAntiforgery();
-
             app.MapStaticAssets();
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode();
