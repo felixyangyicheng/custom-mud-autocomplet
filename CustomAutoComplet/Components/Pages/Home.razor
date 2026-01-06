@@ -90,7 +90,43 @@
 
 </MudPaper>
 
+
+
+<CustomMultiAutocomplet TItem="UserResultWithScore"
+                        @bind-Values="_users"
+                        SearchFunc="SearchUsers"
+                        DisplayFunc="u => u.DisplayName"
+                        Placeholder="Ajouter des utilisateurs">
+
+    <ItemTemplate Context="ctx">
+        <div class="d-flex justify-space-between w-100">
+            <div>
+                <MudText>
+                    @TextHighlightHelper.Highlight(
+                        ctx.Item.DisplayName,
+                        ctx.SearchText)
+                </MudText>
+                <MudText Typo="Typo.caption">
+                    @TextHighlightHelper.Highlight(
+                        ctx.Item.Email,
+                        ctx.SearchText)
+                </MudText>
+            </div>
+
+            <MudChip T="UserResultWithScore" Size="Size.Small" Variant="Variant.Outlined">
+                @ctx.Item.MatchType
+            </MudChip>
+        </div>
+    </ItemTemplate>
+
+</CustomMultiAutocomplet>
+
+
 @code {
+    private List<UserResultWithScore> _users = new();
+
+
+
     private UserResultWithScore _selectedUser;
     private Func<UserResultWithScore, string> convertDiplayNameFunc = ci => ci?.DisplayName;
     private IAsyncEnumerable<UserResultWithScore> SearchUsers(
