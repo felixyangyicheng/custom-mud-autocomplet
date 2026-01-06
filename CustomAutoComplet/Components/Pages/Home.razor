@@ -1,5 +1,6 @@
 ﻿@page "/"
 @using CustomAutoComplet.Components.Compo
+@using CustomAutoComplet.Components.Helpers
 @using CustomAutoComplet.Data
 @using CustomAutoComplet.Services.Contracts
 
@@ -11,30 +12,54 @@
     <MudText Typo="Typo.h6">Rechercher un utilisateur</MudText>
 
     <CustomAutocomplet TItem="UserResultWithScore"
-                        @bind-Value="_selectedUser"
-                        SearchFunc="SearchUsers"
-                        Placeholder="Tapez un nom..."
-                        MinCharacters="2"
-                        DebounceInterval="300"
-                        Clearable="true">
+                       @bind-Value="_selectedUser"
+                       SearchFunc="SearchUsers"
+                       Placeholder="Tapez un nom..."
+                       MinCharacters="2"
+                       DebounceInterval="300"
+                       DisplayFunc="u => u.DisplayName"
+                       Clearable="true">
 
-        <ItemTemplate Context="user">
-            <MudText>@user.FirstName, @user.LastName, @user.Email</MudText>
-            <MudText> @user.Guid</MudText>
+        <ItemTemplate Context="ctx">
 
-    <div class="d-flex align-center justify-space-between w-100">
-        <div>
-            <MudText>@user.DisplayName</MudText>
-            <MudText Typo="Typo.caption" Color="Color.Secondary">
-                @user.Email
-            </MudText>
-        </div>
 
-                <MudChip T="UserResultWithScore" Size="Size.Small" Color="@(user.Score > 90 ? Color.Success : Color.Default)" Variant="Variant.Outlined">
-            @user.MatchType @user.Score %
-        </MudChip>
-    </div>
-</ItemTemplate>
+            <div class="d-flex justify-space-between w-100">
+                <div>
+                    <MudText>
+                        @TextHighlightHelper.Highlight(
+                                                ctx.Item.DisplayName,
+                                                ctx.SearchText)
+                    </MudText>
+
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        @TextHighlightHelper.Highlight(
+                                                ctx.Item.Email,
+                                                ctx.SearchText)
+                    </MudText>
+                </div>
+
+                <MudChip T="UserResultWithScore" Size="Size.Small"
+                         Color="@(ctx.Item.Score > 90 ? Color.Success : Color.Default)"
+                         Variant="Variant.Outlined">
+                    @ctx.Item.MatchType
+                </MudChip>
+            </div>
+            <MudText>@ctx.Item.FirstName, @ctx.Item.LastName, @ctx.Item.Email</MudText>
+            <MudText> @ctx.Item.Guid</MudText>
+
+            <div class="d-flex align-center justify-space-between w-100">
+                <div>
+                    <MudText>@ctx.Item.DisplayName</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        @ctx.Item.Email
+                    </MudText>
+                </div>
+
+                <MudChip T="UserResultWithScore" Size="Size.Small" Color="@(ctx.Item.Score > 90 ? Color.Success : Color.Default)" Variant="Variant.Outlined">
+                    @ctx.Item.MatchType @ctx.Item.Score %
+                </MudChip>
+            </div>
+        </ItemTemplate>
         <LoadingTemplate>
             <MudProgressLinear Indeterminate />
         </LoadingTemplate>
@@ -67,7 +92,7 @@
 
 @code {
     private UserResultWithScore _selectedUser;
-
+    private Func<UserResultWithScore, string> convertDiplayNameFunc = ci => ci?.DisplayName;
     private IAsyncEnumerable<UserResultWithScore> SearchUsers(
         string text,
         CancellationToken ct)

@@ -10,7 +10,8 @@ public partial class CustomAutocomplet<TItem> : ComponentBase
      * =======================*/
 
     [Parameter] public required Func<string, CancellationToken, IAsyncEnumerable<TItem>> SearchFunc { get; set; }
-    [Parameter] public RenderFragment<TItem> ItemTemplate { get; set; } = default!;
+
+
     [Parameter] public RenderFragment LoadingTemplate { get; set; } = default!;
     [Parameter] public RenderFragment EmptyTemplate { get; set; } = default!;
     [Parameter] public RenderFragment<Exception> ErrorTemplate { get; set; } = default!;
@@ -25,6 +26,14 @@ public partial class CustomAutocomplet<TItem> : ComponentBase
     [Parameter] public int MinCharacters { get; set; } = 2;
     [Parameter] public string MaxHeight { get; set; } = "300px";
     [Parameter] public int ItemSize { get; set; } = 40;
+    [Parameter] public Func<TItem, string>? DisplayFunc { get; set; }
+    [Parameter] public RenderFragment<AutocompleteItemContext<TItem>> ItemTemplate { get; set; } = default!;
+
+    public sealed class AutocompleteItemContext<TItem>
+    {
+        public required TItem Item { get; init; }
+        public required string SearchText { get; init; }
+    }
 
     /* =======================
      * State
@@ -42,6 +51,33 @@ public partial class CustomAutocomplet<TItem> : ComponentBase
     protected string PopupStyle =>
         $"position:absolute; width:100%; z-index:20; max-height:{MaxHeight}; overflow-y:auto";
 
+
+    protected RenderFragment HighlightText(string text, string keyword)
+    {
+        if (string.IsNullOrWhiteSpace(text) ||
+            string.IsNullOrWhiteSpace(keyword))
+            return builder => builder.AddContent(0, text);
+
+        var index = text.IndexOf(
+            keyword,
+            StringComparison.OrdinalIgnoreCase);
+
+        if (index < 0)
+            return builder => builder.AddContent(0, text);
+
+        return builder =>
+        {
+            builder.AddContent(0, text[..index]);
+
+            builder.OpenElement(1, "mark");
+            builder.AddAttribute(2, "class", "highlight");
+            builder.AddContent(3, text.Substring(index, keyword.Length));
+            builder.CloseElement();
+
+            builder.AddContent(4, text[(index + keyword.Length)..]);
+        };
+    }
+
     /* =======================
      * Lifecycle
      * =======================*/
@@ -49,9 +85,19 @@ public partial class CustomAutocomplet<TItem> : ComponentBase
     protected override void OnParametersSet()
     {
         if (Value != null)
-            _searchText = Value.ToString()!;
+            _searchText = GetDisplayText(Value);
     }
 
+    protected string GetDisplayText(TItem item)
+    {
+        if (item == null)
+            return string.Empty;
+
+        if (DisplayFunc != null)
+            return DisplayFunc(item);
+
+        return item.ToString()!;
+    }
     /* =======================
      * Search
      * =======================*/

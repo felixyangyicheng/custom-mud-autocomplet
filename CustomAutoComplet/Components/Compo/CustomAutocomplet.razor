@@ -3,7 +3,7 @@
 <MudPaper Class="stream-autocomplete" Style="position:relative">
     <MudTextField T="string"
                   @bind-Value="_searchText"
-
+                  
                   Immediate="true"
                   Disabled="Disabled"
                   DebounceInterval="DebounceInterval"
@@ -33,7 +33,13 @@
                                      Class="GetItemClass(item)"
                                      @onmouseover="() => _highlighted = item"
                                      OnClick="() => SelectAsync(item)">
-                            @ItemTemplate(item)
+
+                            @ItemTemplate(new AutocompleteItemContext<TItem>
+                            {
+                                Item = item,
+                                SearchText = _searchText
+                            })
+
                         </MudListItem>
                     </Virtualize>
                 </MudList>
