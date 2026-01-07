@@ -512,19 +512,26 @@ UI 不用管业务逻辑
 
 以后可以微调权重
 
-
-
 🎯 最终排序逻辑
-
 ORDER BY Score DESC, FirstName
-
-
-
-
-
 👉 最相关的永远排在最前
 
 
+
+✅ 解决方案总览（从推荐到权宜）
+方案	推荐度	说明
+方案一：提供 KeySelector （⭐推荐）	⭐⭐⭐⭐⭐	组件库最专业
+方案二：重写 Equals / GetHashCode	⭐⭐⭐	可行，但侵入模型
+方案三：IEqualityComparer	⭐⭐	API 偏重
+
+👉 我强烈建议方案一
+
+✅ 方案一（最佳实践）
+👉 给组件一个[Parameter]  public required Func<TItem, object> KeySelector { get; set; }
+🎯 思想（非常重要）
+
+组件不关心“对象实例”
+只关心“业务唯一键”
 
 https://zetbit.tech/categories/asp-dot-net-core/39/display-live-data-from-database-in-blazor-sqltabledependency-and-signalr
 

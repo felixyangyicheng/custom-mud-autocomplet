@@ -3,6 +3,7 @@
 @using CustomAutoComplet.Components.Helpers
 @using CustomAutoComplet.Data
 @using CustomAutoComplet.Services.Contracts
+@using System.Threading.Tasks
 
 
 @inject IUserService UserService
@@ -96,6 +97,7 @@
                         @bind-Values="_users"
                         SearchFunc="SearchUsers"
                         DisplayFunc="u => u.DisplayName"
+                        KeySelector="u => u.Id"
                         Placeholder="Ajouter des utilisateurs">
 
     <ItemTemplate Context="ctx">
@@ -111,6 +113,11 @@
                         ctx.Item.Email,
                         ctx.SearchText)
                 </MudText>
+                <MudText Typo="Typo.caption">
+                    @TextHighlightHelper.Highlight(
+                                        ctx.Item.Guid.ToString(),
+                                        ctx.SearchText)
+                </MudText>
             </div>
 
             <MudChip T="UserResultWithScore" Size="Size.Small" Variant="Variant.Outlined">
@@ -122,17 +129,36 @@
 </CustomMultiAutocomplet>
 
 
-@code {
+    @code {
+
+
+
+
+
+
+
     private List<UserResultWithScore> _users = new();
 
 
 
     private UserResultWithScore _selectedUser;
-    private Func<UserResultWithScore, string> convertDiplayNameFunc = ci => ci?.DisplayName;
+    private Func<UserResultWithScore, string?> convertDiplayNameFunc = ci => ci?.DisplayName;
     private IAsyncEnumerable<UserResultWithScore> SearchUsers(
         string text,
         CancellationToken ct)
     {
         return UserService.StreamUsersWithScoreAsync(text, ct);
     }
+
+    protected override async Task OnParametersSetAsync()
+    {
+
+        CancellationToken _ct = new CancellationToken();
+        var tempList= UserService.StreamUsersWithScoreAsync10("olivia", _ct);
+
+        var final =await tempList.ToListAsync();
+        _users.AddRange(final);
+        base.OnParametersSet();
+    }
+
 }

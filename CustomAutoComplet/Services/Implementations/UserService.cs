@@ -37,6 +37,11 @@ public class UserService:IUserService
         return _repo.StreamUsersWithScoreAsync(keyword, ct);
     }
 
+    public IAsyncEnumerable<UserResultWithScore> StreamUsersWithScoreAsync10(string keyword, CancellationToken ct)
+    {
+        return _repo.StreamUsersWithScoreAsync10(keyword, ct);
+    }
+
     private void OnTableChanged(object sender, RecordChangedEventArgs<User> e)
     {
         if (e.ChangeType != ChangeType.None)

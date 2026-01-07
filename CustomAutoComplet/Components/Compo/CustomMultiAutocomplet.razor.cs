@@ -17,6 +17,7 @@ namespace CustomAutoComplet.Components.Compo
         [Parameter] public required Func<TItem, string> DisplayFunc { get; set; }
 
         [Parameter] public RenderFragment<AutocompleteItemContext<TItem>> ItemTemplate { get; set; } = default!;
+        [Parameter]  public required Func<TItem, object> KeySelector { get; set; }
 
         [Parameter] public bool Disabled { get; set; }
         [Parameter] public string Placeholder { get; set; } = "";
@@ -50,7 +51,11 @@ namespace CustomAutoComplet.Components.Compo
         /* =======================
          * Search
          * =======================*/
-
+        private bool IsSelected(TItem item)
+        {
+            var key = KeySelector(item);
+            return Values.Any(v => Equals(KeySelector(v), key));
+        }
         private async Task HandleSearchAsync(string text)
         {
             if (Disabled || string.IsNullOrWhiteSpace(text) || text.Length < MinCharacters)
@@ -76,7 +81,7 @@ namespace CustomAutoComplet.Components.Compo
                     if (version != _searchVersion)
                         break;
 
-                    if (Values.Contains(item))
+                    if (IsSelected(item))
                         continue;
 
                     _items.Add(item);
@@ -106,7 +111,7 @@ namespace CustomAutoComplet.Components.Compo
 
         private async Task SelectAsync(TItem item)
         {
-            if (Values.Contains(item))
+            if (IsSelected(item))
                 return;
 
             Values.Add(item);
@@ -117,7 +122,11 @@ namespace CustomAutoComplet.Components.Compo
         }
         private async Task RemoveAsync(TItem item)
         {
-            Values.Remove(item);
+            var key = KeySelector(item);
+
+            Values.RemoveAll(v =>
+                Equals(KeySelector(v), key));
+
             await ValuesChanged.InvokeAsync(Values);
         }
 
