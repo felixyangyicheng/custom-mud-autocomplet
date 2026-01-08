@@ -1,0 +1,507 @@
+﻿@page "/planning"
+@using System.Globalization
+
+<MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
+    <MudPaper Elevation="2" Class="pa-4">
+        <MudText Typo="Typo.h4" Class="mb-4">Gestion des Plannings</MudText>
+
+        <!-- Barre de contrôle -->
+        <MudGrid Class="mb-4">
+            <MudItem xs="12" sm="4">
+                <MudSelect T="ViewMode" @bind-Value="currentViewMode" Label="Vue" Variant="Variant.Outlined">
+                    <MudSelectItem Value="ViewMode.Week">Semaine</MudSelectItem>
+                    <MudSelectItem Value="ViewMode.Month">Mois</MudSelectItem>
+                    <MudSelectItem Value="ViewMode.Year">Année</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudDatePicker @bind-Date="selectedDate" Label="Date de référence" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudButtonGroup Variant="Variant.Outlined" Color="Color.Primary">
+                    <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" OnClick="NavigatePrevious" />
+                    <MudButton OnClick="NavigateToday">Aujourd'hui</MudButton>
+                    <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" OnClick="NavigateNext" />
+                </MudButtonGroup>
+            </MudItem>
+        </MudGrid>
+
+        <!-- Tableau de planning -->
+        <div style="overflow-x: auto;">
+            <MudPaper Elevation="1" Class="planning-grid">
+                <!-- En-tête des colonnes (dates) -->
+                <div class="planning-header">
+                    <div class="resource-column-header">Ressource</div>
+                    @foreach (var date in GetDateRange())
+                    {
+                        <div class="date-column-header">
+                            <div>@date.ToString("ddd", new CultureInfo("fr-FR"))</div>
+                            <div class="date-number">@date.Day</div>
+                            @if (currentViewMode == ViewMode.Week || currentViewMode == ViewMode.Month)
+                            {
+                                <div class="month-name">@date.ToString("MMM", new CultureInfo("fr-FR"))</div>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <!-- Section Personnel -->
+                <div class="section-title">
+                    <MudText Typo="Typo.h6" Color="Color.Primary">Personnel</MudText>
+                </div>
+                @foreach (var person in personnel)
+                {
+                    <div class="planning-row">
+                        <div class="resource-label person-label">
+                            <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-2" />
+                            @person.Name
+                        </div>
+                        @foreach (var date in GetDateRange())
+                        {
+                            var booking = GetBooking(person.Id, date, true);
+                            <div class="date-cell @GetCellClass(booking)"
+                                 @onclick="() => OpenBookingDialog(person.Id, date, true)">
+                                @if (booking != null)
+                                {
+                                    <div class="booking-content" style="height: @GetBookingHeight(booking)%">
+                                        <MudText Typo="Typo.caption">@booking.Title</MudText>
+                                        <MudText Typo="Typo.caption" Class="time-range">
+                                            @booking.StartTime.ToString(@"hh\:mm")-@booking.EndTime.ToString(@"hh\:mm")
+                                        </MudText>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+
+                <!-- Section Ressources Matérielles -->
+                <div class="section-title">
+                    <MudText Typo="Typo.h6" Color="Color.Secondary">Ressources Matérielles</MudText>
+                </div>
+                @foreach (var resource in resources)
+                {
+                    <div class="planning-row">
+                        <div class="resource-label resource-label-item">
+                            <MudIcon Icon="@Icons.Material.Filled.Devices" Size="Size.Small" Class="mr-2" />
+                            @resource.Name
+                        </div>
+                        @foreach (var date in GetDateRange())
+                        {
+                            var booking = GetBooking(resource.Id, date, false);
+                            <div class="date-cell @GetCellClass(booking)"
+                                 @onclick="() => OpenBookingDialog(resource.Id, date, false)">
+                                @if (booking != null)
+                                {
+                                    <div class="booking-content" style="height: @GetBookingHeight(booking)%">
+                                        <MudText Typo="Typo.caption">@booking.Title</MudText>
+                                        <MudText Typo="Typo.caption" Class="time-range">
+                                            @booking.StartTime.ToString(@"hh\:mm")-@booking.EndTime.ToString(@"hh\:mm")
+                                        </MudText>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </MudPaper>
+        </div>
+    </MudPaper>
+</MudContainer>
+
+<!-- Dialog pour ajouter/modifier une réservation -->
+<MudDialog @bind-IsVisible="dialogVisible">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(editingBooking?.Id > 0 ? "Modifier" : "Ajouter") une réservation</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (editingBooking != null)
+        {
+            <MudTextField @bind-Value="editingBooking.Title" Label="Titre" Variant="Variant.Outlined" Class="mb-3" />
+            <MudTextField @bind-Value="editingBooking.Description" Label="Description" Variant="Variant.Outlined"
+                          Lines="3" Class="mb-3" />
+            <MudGrid>
+                <MudItem xs="6">
+                    <MudTimePicker @bind-Time="startTime" Label="Heure de début" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudTimePicker @bind-Time="endTime" Label="Heure de fin" Variant="Variant.Outlined" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        @if (editingBooking?.Id > 0)
+        {
+            <MudButton Color="Color.Error" OnClick="DeleteBooking">Supprimer</MudButton>
+        }
+        <MudButton OnClick="CloseDialog">Annuler</MudButton>
+        <MudButton Color="Color.Primary" OnClick="SaveBooking">Enregistrer</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    .planning-grid {
+        display: table;
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .planning-header {
+        display: table-row;
+        background-color: #f5f5f5;
+        font-weight: bold;
+    }
+
+    .resource-column-header {
+        display: table-cell;
+        padding: 16px;
+        border: 1px solid #ddd;
+        width: 200px;
+        min-width: 200px;
+        position: sticky;
+        left: 0;
+        background-color: #f5f5f5;
+        z-index: 10;
+    }
+
+    .date-column-header {
+        display: table-cell;
+        padding: 12px;
+        border: 1px solid #ddd;
+        text-align: center;
+        min-width: 100px;
+        vertical-align: middle;
+    }
+
+    .date-number {
+        font-size: 1.5em;
+        font-weight: bold;
+        color: #424242;
+    }
+
+    .month-name {
+        font-size: 0.85em;
+        color: #757575;
+    }
+
+    .section-title {
+        display: table-row;
+        background-color: #e3f2fd;
+    }
+
+        .section-title > * {
+            display: table-cell;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            font-weight: bold;
+        }
+
+    .planning-row {
+        display: table-row;
+    }
+
+        .planning-row:hover {
+            background-color: #fafafa;
+        }
+
+    .resource-label {
+        display: table-cell;
+        padding: 12px 16px;
+        border: 1px solid #ddd;
+        width: 200px;
+        min-width: 200px;
+        position: sticky;
+        left: 0;
+        background-color: white;
+        z-index: 5;
+        vertical-align: middle;
+        display: flex;
+        align-items: center;
+    }
+
+    .planning-row:hover .resource-label {
+        background-color: #fafafa;
+    }
+
+    .person-label {
+        background-color: #e8f5e9;
+    }
+
+    .resource-label-item {
+        background-color: #fff3e0;
+    }
+
+    .date-cell {
+        display: table-cell;
+        border: 1px solid #ddd;
+        min-width: 100px;
+        height: 60px;
+        cursor: pointer;
+        position: relative;
+        padding: 4px;
+        vertical-align: top;
+    }
+
+        .date-cell:hover {
+            background-color: #f0f0f0;
+        }
+
+        .date-cell.has-booking {
+            background-color: #e3f2fd;
+        }
+
+            .date-cell.has-booking:hover {
+                background-color: #bbdefb;
+            }
+
+    .booking-content {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 4px;
+        padding: 4px 8px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        position: relative;
+    }
+
+    .time-range {
+        font-size: 0.7em;
+        opacity: 0.9;
+    }
+</style>
+
+@code {
+    public enum ViewMode { Week, Month, Year }
+
+    private ViewMode currentViewMode = ViewMode.Week;
+    private DateTime? selectedDate = DateTime.Today;
+    private bool dialogVisible = false;
+    private Booking? editingBooking;
+    private TimeSpan? startTime;
+    private TimeSpan? endTime;
+    private int currentResourceId;
+    private DateTime currentDate;
+    private bool isPersonnel;
+
+    private List<Person> personnel = new()
+    {
+        new Person { Id = 1, Name = "Jean Dupont" },
+        new Person { Id = 2, Name = "Marie Martin" },
+        new Person { Id = 3, Name = "Pierre Durand" },
+        new Person { Id = 4, Name = "Sophie Bernard" }
+    };
+
+    private List<Resource> resources = new()
+    {
+        new Resource { Id = 101, Name = "Salle de conférence A" },
+        new Resource { Id = 102, Name = "Projecteur HD" },
+        new Resource { Id = 103, Name = "Véhicule de service" },
+        new Resource { Id = 104, Name = "Ordinateur portable" }
+    };
+
+    private List<Booking> bookings = new()
+    {
+        new Booking
+        {
+            Id = 1, ResourceId = 1, Date = DateTime.Today,
+            StartTime = new TimeSpan(9, 0, 0), EndTime = new TimeSpan(17, 0, 0),
+            Title = "Formation", IsPersonnel = true
+        },
+        new Booking
+        {
+            Id = 2, ResourceId = 2, Date = DateTime.Today.AddDays(1),
+            StartTime = new TimeSpan(9, 0, 0), EndTime = new TimeSpan(12, 0, 0),
+            Title = "Réunion", IsPersonnel = true
+        },
+        new Booking
+        {
+            Id = 3, ResourceId = 101, Date = DateTime.Today,
+            StartTime = new TimeSpan(14, 0, 0), EndTime = new TimeSpan(17, 0, 0),
+            Title = "Présentation client", IsPersonnel = false
+        }
+    };
+
+    private List<DateTime> GetDateRange()
+    {
+        var dates = new List<DateTime>();
+        var baseDate = selectedDate ?? DateTime.Today;
+
+        switch (currentViewMode)
+        {
+            case ViewMode.Week:
+                var startOfWeek = baseDate.AddDays(-(int)baseDate.DayOfWeek + (int)DayOfWeek.Monday);
+                for (int i = 0; i < 7; i++)
+                    dates.Add(startOfWeek.AddDays(i));
+                break;
+
+            case ViewMode.Month:
+                var startOfMonth = new DateTime(baseDate.Year, baseDate.Month, 1);
+                var daysInMonth = DateTime.DaysInMonth(baseDate.Year, baseDate.Month);
+                for (int i = 0; i < daysInMonth; i++)
+                    dates.Add(startOfMonth.AddDays(i));
+                break;
+
+            case ViewMode.Year:
+                for (int i = 1; i <= 12; i++)
+                    dates.Add(new DateTime(baseDate.Year, i, 1));
+                break;
+        }
+
+        return dates;
+    }
+
+    private Booking? GetBooking(int resourceId, DateTime date, bool isPersonnel)
+    {
+        return bookings.FirstOrDefault(b =>
+            b.ResourceId == resourceId &&
+            b.Date.Date == date.Date &&
+            b.IsPersonnel == isPersonnel);
+    }
+
+    private string GetCellClass(Booking? booking)
+    {
+        return booking != null ? "has-booking" : "";
+    }
+
+    private double GetBookingHeight(Booking booking)
+    {
+        var workDayHours = 8.0; // 9h-17h = 8 heures
+        var bookingHours = (booking.EndTime - booking.StartTime).TotalHours;
+        return (bookingHours / workDayHours) * 100;
+    }
+
+    private void OpenBookingDialog(int resourceId, DateTime date, bool isPersonnel)
+    {
+        currentResourceId = resourceId;
+        currentDate = date;
+        this.isPersonnel = isPersonnel;
+
+        var existing = GetBooking(resourceId, date, isPersonnel);
+
+        if (existing != null)
+        {
+            editingBooking = new Booking
+            {
+                Id = existing.Id,
+                ResourceId = existing.ResourceId,
+                Date = existing.Date,
+                StartTime = existing.StartTime,
+                EndTime = existing.EndTime,
+                Title = existing.Title,
+                Description = existing.Description,
+                IsPersonnel = existing.IsPersonnel
+            };
+            startTime = existing.StartTime;
+            endTime = existing.EndTime;
+        }
+        else
+        {
+            editingBooking = new Booking
+            {
+                ResourceId = resourceId,
+                Date = date,
+                IsPersonnel = isPersonnel
+            };
+            startTime = new TimeSpan(9, 0, 0);
+            endTime = new TimeSpan(17, 0, 0);
+        }
+
+        dialogVisible = true;
+    }
+
+    private void SaveBooking()
+    {
+        if (editingBooking == null) return;
+
+        editingBooking.StartTime = startTime ?? new TimeSpan(9, 0, 0);
+        editingBooking.EndTime = endTime ?? new TimeSpan(17, 0, 0);
+
+        if (editingBooking.Id > 0)
+        {
+            var existing = bookings.FirstOrDefault(b => b.Id == editingBooking.Id);
+            if (existing != null)
+            {
+                existing.Title = editingBooking.Title;
+                existing.Description = editingBooking.Description;
+                existing.StartTime = editingBooking.StartTime;
+                existing.EndTime = editingBooking.EndTime;
+            }
+        }
+        else
+        {
+            editingBooking.Id = bookings.Any() ? bookings.Max(b => b.Id) + 1 : 1;
+            bookings.Add(editingBooking);
+        }
+
+        CloseDialog();
+    }
+
+    private void DeleteBooking()
+    {
+        if (editingBooking?.Id > 0)
+        {
+            bookings.RemoveAll(b => b.Id == editingBooking.Id);
+            CloseDialog();
+        }
+    }
+
+    private void CloseDialog()
+    {
+        dialogVisible = false;
+        editingBooking = null;
+    }
+
+    private void NavigatePrevious()
+    {
+        selectedDate = currentViewMode switch
+        {
+            ViewMode.Week => (selectedDate ?? DateTime.Today).AddDays(-7),
+            ViewMode.Month => (selectedDate ?? DateTime.Today).AddMonths(-1),
+            ViewMode.Year => (selectedDate ?? DateTime.Today).AddYears(-1),
+            _ => selectedDate
+        };
+    }
+
+    private void NavigateNext()
+    {
+        selectedDate = currentViewMode switch
+        {
+            ViewMode.Week => (selectedDate ?? DateTime.Today).AddDays(7),
+            ViewMode.Month => (selectedDate ?? DateTime.Today).AddMonths(1),
+            ViewMode.Year => (selectedDate ?? DateTime.Today).AddYears(1),
+            _ => selectedDate
+        };
+    }
+
+    private void NavigateToday()
+    {
+        selectedDate = DateTime.Today;
+    }
+
+    public class Person
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+    }
+
+    public class Resource
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+    }
+
+    public class Booking
+    {
+        public int Id { get; set; }
+        public int ResourceId { get; set; }
+        public DateTime Date { get; set; }
+        public TimeSpan StartTime { get; set; }
+        public TimeSpan EndTime { get; set; }
+        public string Title { get; set; } = "";
+        public string Description { get; set; } = "";
+        public bool IsPersonnel { get; set; }
+    }
+}
