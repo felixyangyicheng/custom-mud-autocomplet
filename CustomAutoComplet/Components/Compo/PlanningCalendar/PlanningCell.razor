@@ -1,0 +1,71 @@
+﻿<style>
+    .cell {
+        position: relative;
+        height: 60px;
+        border: 1px solid #ccc;
+        cursor: pointer;
+    }
+
+    .event {
+        position: absolute;
+        width: 100%;
+        background-color: #1976d2;
+        opacity: 0.85;
+    }
+
+    .conflict {
+        background-color: #d32f2f !important;
+    }
+
+</style>
+<div class="cell" @onclick="OpenDialog">
+    @foreach (var ev in DayEvents)
+    {
+        <div class="event @(IsConflict(ev) ? "conflict" : "")"
+             style="
+                    height:@GetHeight(ev)%;
+                    bottom:@GetBottom(ev)%;">
+        </div>
+    }
+</div>
+
+
+@code {
+    [Parameter] public PlanningRow Row { get; set; } = default!;
+    [Parameter] public DateTime Date { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<PlanningEvent> Events { get; set; }
+        = Array.Empty<PlanningEvent>();
+
+    List<PlanningEvent> DayEvents = new();
+
+    protected override void OnParametersSet()
+    {
+        DayEvents = Events
+            .Where(e =>
+                e.Date.Date == Date.Date &&
+                ((Row.Type == RowType.Person && e.PersonId == Row.Id) ||
+                 (Row.Type == RowType.Resource && e.ResourceId == Row.Id)))
+            .ToList();
+    }
+
+    double GetHeight(PlanningEvent ev)
+        => ((ev.End - ev.Start).TotalHours / 8.0) * 100;
+
+    double GetBottom(PlanningEvent ev)
+        => ((ev.Start.TotalHours - 9) / 8.0) * 100;
+
+    bool IsConflict(PlanningEvent current)
+    {
+        return DayEvents.Any(e =>
+            e.Id != current.Id &&
+            e.Start < current.End &&
+            current.Start < e.End);
+    }
+
+    void OpenDialog()
+    {
+        
+    }
+}

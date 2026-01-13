@@ -1,0 +1,144 @@
+﻿@using MudBlazor
+<style>
+    .planning-table {
+        border-collapse: collapse;
+        width: 100%;
+    }
+
+        .planning-table th,
+        .planning-table td {
+            border: 1px solid #ccc;
+            padding: 4px;
+            min-width: 100px;
+            text-align: center;
+        }
+
+    .fixed-column {
+        position: sticky;
+        left: 0;
+        background-color: #f9f9f9;
+        z-index: 2;
+    }
+
+    .group-row td {
+        background-color: #f0f0f0;
+        font-weight: bold;
+        text-align: left;
+    }
+
+    .scroll-container {
+        height: 600px;
+        overflow: auto;
+    }
+
+    .today-column {
+        background-color: #ffecb3;
+        font-weight: bold;
+    }
+</style>
+
+<MudPaper Class="scroll-container" @ref="ScrollContainer" id="planning-scroll">
+    <table class="planning-table">
+        <thead>
+            <tr>
+                <th class="fixed-column">Nom</th>
+                @foreach (var date in Dates)
+                {
+                    <th id="@($"col-{date:yyyyMMdd}")"
+                        class="@(date.Date == DateTime.Today ? "today-column" : "")">
+                        @date.ToString("dd/MM")
+                    </th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @* 人员层 *@
+            <tr class="group-row">
+                <td colspan="@(Dates.Count + 1)">
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => ToggleGroup("Person"))">
+                        @(PersonCollapsed ? "▶" : "▼") Personnel
+                    </MudButton>
+                </td>
+            </tr>
+            @if (!PersonCollapsed)
+            {
+                @foreach (var row in Rows.Where(r => r.Type == RowType.Person))
+                {
+                    <tr>
+                        <td class="fixed-column">@row.Name</td>
+                        @foreach (var date in Dates)
+                        {
+                            <td id="@($"col-{date:yyyyMMdd}-{row.Id}")"
+                                class="@(date.Date == DateTime.Today ? "today-column" : "")">
+                                <PlanningCell Row="row" Date="date" Events="Events" />
+                            </td>
+                        }
+                    </tr>
+                }
+            }
+
+            @* 设备层 *@
+            <tr class="group-row">
+                <td colspan="@(Dates.Count + 1)">
+                    <MudButton Variant="Variant.Text" Color="Color.Secondary" OnClick="@(() => ToggleGroup("Resource"))">
+                        @(ResourceCollapsed ? "▶" : "▼") Ressources
+                    </MudButton>
+                </td>
+            </tr>
+            @if (!ResourceCollapsed)
+            {
+                @foreach (var row in Rows.Where(r => r.Type == RowType.Resource))
+                {
+                    <tr>
+                        <td class="fixed-column">@row.Name</td>
+                        @foreach (var date in Dates)
+                        {
+                            <td id="@($"col-{date:yyyyMMdd}-{row.Id}")"
+                                class="@(date.Date == DateTime.Today ? "today-column" : "")">
+                                <PlanningCell Row="row" Date="date" Events="Events" />
+                            </td>
+                        }
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</MudPaper>
+
+@code {
+    [Inject] private IJSRuntime JS { get; set; }
+
+    [Parameter] public List<PlanningRow> Rows { get; set; } = new();
+    [Parameter] public List<DateTime> Dates { get; set; } = new();
+    [Parameter] public List<PlanningEvent> Events { get; set; } = new();
+    [Parameter] public CalendarView View { get; set; } = new();
+
+    private MudPaper ScrollContainer;
+
+    bool PersonCollapsed { get; set; } = false;
+    bool ResourceCollapsed { get; set; } = false;
+
+    void ToggleGroup(string group)
+    {
+        if (group == "Person")
+            PersonCollapsed = !PersonCollapsed;
+        else if (group == "Resource")
+            ResourceCollapsed = !ResourceCollapsed;
+    }
+
+    /// <summary>
+    /// 滚动到今天列并展开折叠层
+    /// </summary>
+    public async Task ScrollToTodayAsync()
+    {
+        PersonCollapsed = false;
+        ResourceCollapsed = false;
+        StateHasChanged();
+
+        // 等 DOM 渲染完成
+        await Task.Delay(50);
+
+        // 调用 JS 滚动动画
+        await JS.InvokeVoidAsync("scrollColumnIntoView", $"col-{DateTime.Today:yyyyMMdd}", "planning-scroll");
+    }
+}
