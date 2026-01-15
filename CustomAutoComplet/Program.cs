@@ -34,9 +34,15 @@ namespace CustomAutoComplet
             // Add services to the container.
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
+            builder.Services.AddMemoryCache(options =>
+            {
+                options.SizeLimit = 1024 * 1024 * 100; // 100MB limit
+                options.CompactionPercentage = 0.2;
+                options.ExpirationScanFrequency = TimeSpan.FromMinutes(5);
+            });
             builder.Services.AddScoped<IUserService, UserService>();
             builder.Services.AddScoped<IUserRepo, UserRepo>();
-
+            builder.Services.AddHostedService<UserWatcherService>();
 
             builder.Services.AddSignalR();
 
