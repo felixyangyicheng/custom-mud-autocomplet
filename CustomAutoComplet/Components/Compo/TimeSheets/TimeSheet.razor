@@ -1,0 +1,274 @@
+﻿@namespace CustomAutoComplet.Data
+@page "/timesheet"
+@* @attribute [Authorize(Roles = "Employee,Manager")] *@
+@using CustomAutoComplet.Data
+@using MudBlazor
+@using System.Security.Claims
+@using System.Collections.Generic
+
+<PageTitle>我的工时 - @CurrentWeekRange</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="my-6">
+
+    <MudText Typo="Typo.h5" Class="mb-4">本周工时记录 (@CurrentWeekMonday.ToString("yyyy-MM-dd") ~ @CurrentWeekSunday.ToString("yyyy-MM-dd"))</MudText>
+
+    <!-- 项目选择区 -->
+    <MudCard Elevation="2" Class="mb-6">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h6">选择要记录的项目</MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudSelect T="TrackedProject"
+                       Label="选择项目（多选）"
+                       Variant="Variant.Outlined"
+                       MultiSelection="true"
+                       SelectedValues="TrackedProjects"
+                       SelectedValuesChanged="OnProjectsChanged"
+                       ToStringFunc="@(p => p.ProjectName)"
+                       Class="mt-4">
+                @foreach (var proj in AvailableProjects)
+                {
+                    <MudSelectItem Value="@proj" />
+                }
+            </MudSelect>
+        </MudCardContent>
+    </MudCard>
+
+    <!-- 一周工时表格（核心部分） -->
+    <MudTable Items="@DisplayWeekEntries"
+              Dense="true"
+              Bordered="true"
+              Striped="true"
+              Hover="true"
+              Elevation="4"
+              FixedHeader="true"
+              Height="500px">
+
+        <HeaderContent>
+            <MudTh>项目</MudTh>
+            @foreach (var date in WeekDates)
+            {
+                <MudTh Class="@(date == Today ? "mud-theme-primary" : "")">
+                    @date.ToString("ddd<br/>MM-dd")
+                </MudTh>
+            }
+            <MudTh>小计</MudTh>
+        </HeaderContent>
+
+        <RowTemplate>
+            <MudTd DataLabel="项目">@context.Project.ProjectName</MudTd>
+            @foreach (var date in WeekDates)
+            {
+                var entry = context.DailyEntries.FirstOrDefault(e => e.WorkDate == date);
+                <MudTd DataLabel="@date.ToShortDateString()">
+                    @if (entry != null)
+                    {
+                        <MudLink Inline="true"
+                                 Href="#"
+                                 OnClick="@(() => OpenRecordDialog(context.Project, date, entry))">
+                            @entry.Hours.ToString("0.0")
+                        </MudLink>
+                    }
+                    else
+                    {
+                        <MudLink Inline="true" Color="Color.Info" OnClick="@(() => OpenRecordDialog(context.Project, date))">+</MudLink>
+                    }
+                </MudTd>
+            }
+            <MudTd>@context.WeeklyTotal.ToString("0.0")</MudTd>
+        </RowTemplate>
+
+        <FooterContent>
+            <MudTd><strong>本周总计</strong></MudTd>
+            @foreach (var date in WeekDates)
+            {
+                var dayTotal = DisplayWeekEntries.Sum(e => e.DailyEntries.FirstOrDefault(d => d.WorkDate == date)?.Hours ?? 0);
+                <MudTd><strong>@(dayTotal > 0 ? dayTotal.ToString("0.0") : "-")</strong></MudTd>
+            }
+            <MudTd><strong>@TotalWeekHours.ToString("0.0")</strong></MudTd>
+        </FooterContent>
+    </MudTable>
+
+</MudContainer>
+
+<!-- 录入/编辑对话框 -->
+<MudDialog @bind-IsVisible="@_dialogVisible"
+           Title="@DialogTitle"
+           MaxWidth="MaxWidth.Small">
+
+    <DialogContent>
+        <MudText Typo="Typo.subtitle1" Class="mb-4">@SelectedProject?.ProjectName (@SelectedDate?.ToString("yyyy-MM-dd"))</MudText>
+
+        <MudNumericField T="decimal" @bind-Value="@TempHours"
+                         Label="工时 (小时)"
+                         Min="0"
+                         Max="24"
+                         Step="0.5m"
+                         Variant="Variant.Outlined"
+                         Immediate="true"
+                         Class="mb-4" />
+
+        <MudTextField @bind-Value="@TempRemark"
+                      Label="备注"
+                      Lines="3"
+                      Variant="Variant.Outlined" />
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="CancelDialog">取消</MudButton>
+        <MudButton Color="Color.Primary" OnClick="SaveTimeEntry">保存</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    // ── 核心状态 ────────────────────────────────────────────────
+    private HashSet<TrackedProject> TrackedProjects { get; set; } = new();
+    private List<TimeEntry> AllEntriesThisWeek { get; set; } = new();  // 本周所有记录
+
+
+    private DateOnly CurrentWeekMonday { get; set; }
+    private DateOnly CurrentWeekSunday { get; set; }
+    private DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
+
+    private List<DateOnly> WeekDates => Enumerable.Range(0, 7)
+        .Select(i => CurrentWeekMonday.AddDays(i)).ToList();
+
+    private string CurrentWeekRange => $"{CurrentWeekMonday:MM-dd} ~ {CurrentWeekSunday:MM-dd}";
+    private void OnProjectsChanged(IEnumerable<TrackedProject> values)
+    {
+        TrackedProjects = values.ToHashSet();
+    }
+    // 用于显示的聚合视图（按项目分组）
+    private List<ProjectWeekView> DisplayWeekEntries =>
+        TrackedProjects.Select(p => new ProjectWeekView
+        {
+            Project = p,
+            DailyEntries = AllEntriesThisWeek.Where(e => e.ProjectCode == p.ProjectCode).ToList(),
+            WeeklyTotal = AllEntriesThisWeek.Where(e => e.ProjectCode == p.ProjectCode).Sum(e => e.Hours)
+        }).ToList();
+
+    private decimal TotalWeekHours => AllEntriesThisWeek.Sum(e => e.Hours);
+
+    // 对话框状态
+    private bool _dialogVisible = false;
+    private TrackedProject? SelectedProject;
+    private DateOnly? SelectedDate;
+    private TimeEntry? EditingEntry;
+    private decimal TempHours;
+    private string? TempRemark;
+    private string DialogTitle => EditingEntry == null ? "新增工时" : "修改工时";
+
+    // 视图模型（仅前端聚合用）
+    private class ProjectWeekView
+    {
+        public TrackedProject Project { get; set; } = null!;
+        public List<TimeEntry> DailyEntries { get; set; } = new();
+        public decimal WeeklyTotal { get; set; }
+    }
+
+    // 模拟的项目列表（实际应从服务获取）
+    private List<TrackedProject> AvailableProjects = new()
+    {
+        new TrackedProject { ProjectCode = "P001", ProjectName = "产品研发-A模块" },
+        new TrackedProject { ProjectCode = "P002", ProjectName = "客户支持-紧急修复" },
+        new TrackedProject { ProjectCode = "P003", ProjectName = "市场推广-活动规划" },
+        new TrackedProject { ProjectCode = "P004", ProjectName = "内部培训-新员工导向" },
+        new TrackedProject { ProjectCode = "P005", ProjectName = "系统维护-数据库优化" }
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 计算本周一 ~ 周日
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        CurrentWeekMonday = today.AddDays(-(int)today.DayOfWeek + 1); // 周一
+        if (CurrentWeekMonday > today) CurrentWeekMonday = CurrentWeekMonday.AddDays(-7);
+        CurrentWeekSunday = CurrentWeekMonday.AddDays(6);
+
+        // TODO: 从数据库或服务读取
+        // TrackedProjects = await _timeService.GetTrackedProjectsForUser(CurrentUserId);
+        // AllEntriesThisWeek = await _timeService.GetEntriesForWeek(CurrentUserId, CurrentWeekMonday, CurrentWeekSunday);
+
+        // 模拟数据
+        TrackedProjects.Add(new TrackedProject { ProjectCode = "P001", ProjectName = "产品研发-A模块" });
+        TrackedProjects.Add(new TrackedProject { ProjectCode = "P002", ProjectName = "客户支持-紧急修复" });
+
+        // 模拟已有记录
+        AllEntriesThisWeek.Add(new TimeEntry
+        {
+            EmployeeId = "emp001",
+            ProjectCode = "P001",
+            ProjectName = "产品研发-A模块",
+            WorkDate = CurrentWeekMonday.AddDays(1),
+            Hours = 4.5m,
+            Remark = "接口联调"
+        });
+    }
+
+    private async Task OpenRecordDialog(TrackedProject proj, DateOnly? date = null, TimeEntry? entry = null)
+    {
+        SelectedProject = proj;
+        SelectedDate = date ?? Today;
+        EditingEntry = entry;
+
+        TempHours = entry?.Hours ?? 0;
+        TempRemark = entry?.Remark;
+
+        _dialogVisible = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void CancelDialog()
+    {
+        _dialogVisible = false;
+        SelectedProject = null;
+        SelectedDate = null;
+        EditingEntry = null;
+    }
+
+    private async Task SaveTimeEntry()
+    {
+        if (SelectedProject == null || SelectedDate == null || TempHours <= 0) return;
+
+        // TODO: 调用服务保存
+        var entry = EditingEntry ?? new TimeEntry
+        {
+            EmployeeId = "emp001", // 从认证获取
+            EmployeeName = "张三",
+            ProjectCode = SelectedProject.ProjectCode,
+            ProjectName = SelectedProject.ProjectName,
+            WorkDate = SelectedDate.Value
+        };
+
+        entry.Hours = TempHours;
+        entry.Remark = TempRemark;
+        entry.UpdatedAt = DateTime.UtcNow;
+
+        if (EditingEntry == null)
+            AllEntriesThisWeek.Add(entry);
+        // else 已修改的就是引用
+
+        // await _timeService.SaveTimeEntry(entry);
+
+        CancelDialog();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    // 可选：添加切换周的方法
+    private void PreviousWeek()
+    {
+        CurrentWeekMonday = CurrentWeekMonday.AddDays(-7);
+        CurrentWeekSunday = CurrentWeekSunday.AddDays(-7);
+        // TODO: 重新加载数据
+        StateHasChanged();
+    }
+
+    private void NextWeek()
+    {
+        CurrentWeekMonday = CurrentWeekMonday.AddDays(7);
+        CurrentWeekSunday = CurrentWeekSunday.AddDays(7);
+        // TODO: 重新加载数据
+        StateHasChanged();
+    }
+}

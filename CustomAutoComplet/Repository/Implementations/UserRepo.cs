@@ -28,7 +28,7 @@ public class UserRepo : IUserRepo
         await using var conn =
             _connectionFactory.CreateConnection() as SqlConnection;
 
-        await conn.OpenAsync(ct);
+        await conn?.OpenAsync(ct);
 
         await using var reader = await conn.ExecuteReaderAsync(
             new CommandDefinition(

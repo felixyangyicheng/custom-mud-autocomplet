@@ -27,12 +27,12 @@ public class UserService : IUserService
         _logger = logger;
         _cache = cache;
 
-        _cacheOptions = new MemoryCacheEntryOptions()
-            .SetSize(1) // Each list of users counts as 1 unit towards the SizeLimit
-            .SetSlidingExpiration(TimeSpan.FromMinutes(5))
-            .SetAbsoluteExpiration(TimeSpan.FromHours(1))
-            .SetPriority(CacheItemPriority.Normal)
-            .RegisterPostEvictionCallback(OnCacheEvicted);
+_cacheOptions = new MemoryCacheEntryOptions()
+    .SetSize(1) // Each list of users counts as 1 unit towards the SizeLimit
+    .SetSlidingExpiration(TimeSpan.FromMinutes(5))
+    .SetAbsoluteExpiration(TimeSpan.FromHours(1))
+    .SetPriority(CacheItemPriority.Normal)
+    .RegisterPostEvictionCallback(OnCacheEvicted);
     }
 
     public async IAsyncEnumerable<User> StreamUsersAsync(string keyword, CancellationToken ct)
