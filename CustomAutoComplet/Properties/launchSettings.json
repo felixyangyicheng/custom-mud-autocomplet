@@ -14,7 +14,7 @@
         "commandName": "Project",
         "dotnetRunMessages": true,
         "launchBrowser": true,
-        "launchUrl": "timesheet",
+        "launchUrl": "timesheetvalidation",
         "applicationUrl": "https://localhost:7088;http://localhost:5027",
         "environmentVariables": {
           "ASPNETCORE_ENVIRONMENT": "Development"

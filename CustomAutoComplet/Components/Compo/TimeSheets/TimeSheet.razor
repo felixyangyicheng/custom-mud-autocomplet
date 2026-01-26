@@ -58,37 +58,56 @@
         </HeaderContent>
 
         <RowTemplate>
-            <MudTd DataLabel="项目">@context.Project.ProjectName</MudTd>
-            @foreach (var date in WeekDates)
+            @if (context.IsTotalRow)
             {
-                var entry = context.DailyEntries.FirstOrDefault(e => e.WorkDate == date);
-                <MudTd DataLabel="@date.ToShortDateString()">
-                    @if (entry != null)
-                    {
-                        <MudLink Inline="true"
-                                 Href="#"
-                                 OnClick="@(() => OpenRecordDialog(context.Project, date, entry))">
-                            @entry.Hours.ToString("0.0")
-                        </MudLink>
-                    }
-                    else
-                    {
-                        <MudLink Inline="true" Color="Color.Info" OnClick="@(() => OpenRecordDialog(context.Project, date))">+</MudLink>
-                    }
-                </MudTd>
+                <MudTd DataLabel="项目"><strong>本周总计</strong></MudTd>
+                @foreach (var date in WeekDates)
+                {
+                    var dayTotal = GetDailyTotalHours(date);
+                    <MudTd><strong>@(dayTotal > 0 ? dayTotal.ToString("0.0") : "-")</strong></MudTd>
+                }
+                <MudTd><strong>@TotalWeekHours.ToString("0.0")</strong></MudTd>
             }
-            <MudTd>@context.WeeklyTotal.ToString("0.0")</MudTd>
+            else if (context.IsNightRow)
+            {
+                <MudTd DataLabel="项目"><strong>周夜班总计</strong></MudTd>
+                @foreach (var date in WeekDates)
+                {
+                    var nightHours = GetDailyNightHours(date);
+                    <MudTd>
+                        <strong class="@(nightHours > 0 ? "text-warning" : "")">
+                            @(nightHours > 0 ? nightHours.ToString("0.0") : "-")
+                        </strong>
+                    </MudTd>
+                }
+                <MudTd><strong class="text-warning">@TotalNightWeekHours.ToString("0.0")</strong></MudTd>
+            }
+            else
+            {
+                <MudTd DataLabel="项目">@context.Project.ProjectName</MudTd>
+                @foreach (var date in WeekDates)
+                {
+                    var entry = context.DailyEntries.FirstOrDefault(e => e.WorkDate == date);
+                    <MudTd DataLabel="@date.ToShortDateString()">
+                        @if (entry != null)
+                        {
+                            <MudLink Inline="true"
+                                     Href="#"
+                                     OnClick="@(() => OpenRecordDialog(context.Project, date, entry))">
+                                @entry.Hours.ToString("0.0")
+                            </MudLink>
+                        }
+                        else
+                        {
+                            <MudLink Inline="true" Color="Color.Info" OnClick="@(() => OpenRecordDialog(context.Project, date))">+</MudLink>
+                        }
+                    </MudTd>
+                }
+                <MudTd>@context.WeeklyTotal.ToString("0.0")</MudTd>
+            }
         </RowTemplate>
 
-        <FooterContent>
-            <MudTd><strong>本周总计</strong></MudTd>
-            @foreach (var date in WeekDates)
-            {
-                var dayTotal = DisplayWeekEntries.Sum(e => e.DailyEntries.FirstOrDefault(d => d.WorkDate == date)?.Hours ?? 0);
-                <MudTd><strong>@(dayTotal > 0 ? dayTotal.ToString("0.0") : "-")</strong></MudTd>
-            }
-            <MudTd><strong>@TotalWeekHours.ToString("0.0")</strong></MudTd>
-        </FooterContent>
+
     </MudTable>
 
 </MudContainer>
@@ -123,6 +142,31 @@
 </MudDialog>
 
 @code {
+    // 新增：计算每天总工时（所有项目）
+    private decimal GetDailyTotalHours(DateOnly date)
+    {
+        return AllEntriesThisWeek
+            .Where(e => e.WorkDate == date)
+            .Sum(e => e.Hours);
+    }
+
+    // 新增：计算每天夜班工时（所有项目）
+    private decimal GetDailyNightHours(DateOnly date)
+    {
+        // 这里简单示例：假设夜班是 Hours > 8 的部分，或者你可以按实际时间段拆分
+        // 更准确做法：如果有开始/结束时间字段，则计算重叠夜间部分
+        // 当前简易版：全天工时超过8小时的部分视为夜班（仅作演示）
+        var total = GetDailyTotalHours(date);
+        return total > 8 ? total - 8 : 0m;
+
+        // 更推荐的未来写法（如果后续加了时间段）：
+        // return AllEntriesThisWeek
+        //     .Where(e => e.WorkDate == date)
+        //     .Sum(e => CalculateNightPortion(e.StartTime, e.EndTime, e.Hours));
+    }
+
+    // 周夜班总计
+    private decimal TotalNightWeekHours => WeekDates.Sum(date => GetDailyNightHours(date));
     // ── 核心状态 ────────────────────────────────────────────────
     private HashSet<TrackedProject> TrackedProjects { get; set; } = new();
     private List<TimeEntry> AllEntriesThisWeek { get; set; } = new();  // 本周所有记录
@@ -141,13 +185,33 @@
         TrackedProjects = values.ToHashSet();
     }
     // 用于显示的聚合视图（按项目分组）
-    private List<ProjectWeekView> DisplayWeekEntries =>
-        TrackedProjects.Select(p => new ProjectWeekView
+    // 用于显示的聚合视图（按项目分组）
+    private List<ProjectWeekView> DisplayWeekEntries
+    {
+        get
         {
-            Project = p,
-            DailyEntries = AllEntriesThisWeek.Where(e => e.ProjectCode == p.ProjectCode).ToList(),
-            WeeklyTotal = AllEntriesThisWeek.Where(e => e.ProjectCode == p.ProjectCode).Sum(e => e.Hours)
-        }).ToList();
+            var entries = TrackedProjects.Select(p => new ProjectWeekView
+            {
+                Project = p,
+                DailyEntries = AllEntriesThisWeek.Where(e => e.ProjectCode == p.ProjectCode).ToList(),
+                WeeklyTotal = AllEntriesThisWeek.Where(e => e.ProjectCode == p.ProjectCode).Sum(e => e.Hours)
+            }).ToList();
+
+            // 添加本周总计行
+            entries.Add(new ProjectWeekView
+            {
+                IsTotalRow = true
+            });
+
+            // 添加周夜班总计行
+            entries.Add(new ProjectWeekView
+            {
+                IsNightRow = true
+            });
+
+            return entries;
+        }
+    }
 
     private decimal TotalWeekHours => AllEntriesThisWeek.Sum(e => e.Hours);
 
@@ -163,9 +227,11 @@
     // 视图模型（仅前端聚合用）
     private class ProjectWeekView
     {
-        public TrackedProject Project { get; set; } = null!;
+        public TrackedProject? Project { get; set; }
         public List<TimeEntry> DailyEntries { get; set; } = new();
         public decimal WeeklyTotal { get; set; }
+        public bool IsTotalRow { get; set; } = false;
+        public bool IsNightRow { get; set; } = false;
     }
 
     // 模拟的项目列表（实际应从服务获取）
