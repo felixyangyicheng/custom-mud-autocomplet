@@ -44,7 +44,9 @@
               Hover="true"
               Elevation="4"
               FixedHeader="true"
-              Height="500px">
+              Breakpoint="Breakpoint.Sm" 
+              Style="overflow-x: auto;">
+        @* 防止横向溢出 *@
 
         <HeaderContent>
             <MudTh>项目</MudTh>
@@ -64,9 +66,9 @@
                 @foreach (var date in WeekDates)
                 {
                     var dayTotal = GetDailyTotalHours(date);
-                    <MudTd><strong>@(dayTotal > 0 ? dayTotal.ToString("0.0") : "-")</strong></MudTd>
+                    <MudTd DataLabel="@date.ToString("ddd MM/dd")"><strong>@(dayTotal > 0 ? dayTotal.ToString("0.0") : "-")</strong></MudTd>
                 }
-                <MudTd><strong>@TotalWeekHours.ToString("0.0")</strong></MudTd>
+                <MudTd DataLabel="小计"><strong>@TotalWeekHours.ToString("0.0")</strong></MudTd>
             }
             else if (context.IsNightRow)
             {
@@ -74,13 +76,13 @@
                 @foreach (var date in WeekDates)
                 {
                     var nightHours = GetDailyNightHours(date);
-                    <MudTd>
+                    <MudTd DataLabel="@date.ToString("ddd MM/dd")">
                         <strong class="@(nightHours > 0 ? "text-warning" : "")">
                             @(nightHours > 0 ? nightHours.ToString("0.0") : "-")
                         </strong>
                     </MudTd>
                 }
-                <MudTd><strong class="text-warning">@TotalNightWeekHours.ToString("0.0")</strong></MudTd>
+                <MudTd DataLabel="小计"><strong class="text-warning">@TotalNightWeekHours.ToString("0.0")</strong></MudTd>
             }
             else
             {
@@ -88,7 +90,7 @@
                 @foreach (var date in WeekDates)
                 {
                     var entry = context.DailyEntries.FirstOrDefault(e => e.WorkDate == date);
-                    <MudTd DataLabel="@date.ToShortDateString()">
+                    <MudTd DataLabel="@date.ToString("ddd MM/dd")">
                         @if (entry != null)
                         {
                             <MudLink Inline="true"
@@ -103,11 +105,9 @@
                         }
                     </MudTd>
                 }
-                <MudTd>@context.WeeklyTotal.ToString("0.0")</MudTd>
+                <MudTd DataLabel="小计">@context.WeeklyTotal.ToString("0.0")</MudTd>
             }
         </RowTemplate>
-
-
     </MudTable>
 
 </MudContainer>
@@ -116,10 +116,8 @@
 <MudDialog @bind-IsVisible="@_dialogVisible"
            Title="@DialogTitle"
            MaxWidth="MaxWidth.Small">
-
     <DialogContent>
         <MudText Typo="Typo.subtitle1" Class="mb-4">@SelectedProject?.ProjectName (@SelectedDate?.ToString("yyyy-MM-dd"))</MudText>
-
         <MudNumericField T="decimal" @bind-Value="@TempHours"
                          Label="工时 (小时)"
                          Min="0"
@@ -128,13 +126,11 @@
                          Variant="Variant.Outlined"
                          Immediate="true"
                          Class="mb-4" />
-
         <MudTextField @bind-Value="@TempRemark"
                       Label="备注"
                       Lines="3"
                       Variant="Variant.Outlined" />
     </DialogContent>
-
     <DialogActions>
         <MudButton OnClick="CancelDialog">取消</MudButton>
         <MudButton Color="Color.Primary" OnClick="SaveTimeEntry">保存</MudButton>
