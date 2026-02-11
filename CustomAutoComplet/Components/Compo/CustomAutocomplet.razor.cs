@@ -206,7 +206,7 @@ public partial class CustomAutocomplet<TItem> : ComponentBase
         _items.Clear();
     }
 
-    protected string GetItemClass(TItem item)
+    protected string? GetItemClass(TItem item)
         => EqualityComparer<TItem>.Default.Equals(item, _highlighted)
             ? "mud-primary"
             : null;
