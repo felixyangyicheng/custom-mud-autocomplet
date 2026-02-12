@@ -18,6 +18,7 @@ public partial class CustomAutocomplet<TItem> : ComponentBase
 
     [Parameter] public TItem Value { get; set; } = default!;
     [Parameter] public EventCallback<TItem> ValueChanged { get; set; }
+[Parameter] public EventCallback<TItem> OnSelect { get; set; }
 
     [Parameter] public bool Clearable { get; set; } = true;
     [Parameter] public bool Disabled { get; set; }
