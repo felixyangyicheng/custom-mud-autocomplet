@@ -185,13 +185,13 @@ public partial class CustomAutocomplet<TItem> : ComponentBase
     protected async Task SelectAsync(TItem item)
     {
         Value = item;
-        if (item !=null)
-        {
 
-            _searchText = item.ToString()!;
-        }
+        if (item != null)
+            _searchText = GetDisplayText(item); 
         Close();
         await ValueChanged.InvokeAsync(item);
+        await OnSelect.InvokeAsync(item);   
+
     }
 
     protected void Clear()
