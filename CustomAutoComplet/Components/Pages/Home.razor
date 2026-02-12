@@ -14,6 +14,7 @@
 
     <CustomAutocomplet TItem="UserResultWithScore"
                        @bind-Value="_selectedUser"
+ OnSelect="HandleUserSelected"
                        SearchFunc="SearchUsers"
                        Placeholder="Tapez un nom..."
                        MinCharacters="2"
@@ -133,6 +134,10 @@
 
 
 
+private void HandleUserSelected(User user)
+{
+    Console.WriteLine("选中了：" + user.Name);
+}
 
 
 
