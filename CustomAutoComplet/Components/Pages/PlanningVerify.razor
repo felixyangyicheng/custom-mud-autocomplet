@@ -1,0 +1,269 @@
+﻿@page "/planning-verify"
+
+@using System.Linq
+
+<h3>Planning Verify - Fixed Column + Virtual Scroll</h3>
+
+<style>
+    .layout {
+        display: flex;
+        border: 1px solid #ccc;
+        height: 400px;
+    }
+
+    /* 左侧固定列 */
+    .left {
+        width: 180px;
+        flex-shrink: 0;
+        border-right: 1px solid #ccc;
+        background: #f5f5f5;
+    }
+
+        .left .row {
+            height: 60px;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            border-bottom: 1px solid #ddd;
+        }
+
+    /* 右侧滚动区 */
+    .right {
+        overflow-x: auto;
+        flex: 1;
+    }
+
+    .grid {
+        display: flex;
+        position: relative;
+    }
+
+    .column {
+        width: 120px;
+        flex-shrink: 0;
+    }
+
+    .header {
+        height: 40px;
+        text-align: center;
+        border-bottom: 1px solid #ccc;
+        background: #fafafa;
+    }
+
+    .cell {
+        height: 60px;
+        border: 1px solid #eee;
+        position: relative;
+    }
+
+    .event {
+        position: absolute;
+        width: 100%;
+        background: #1976d2;
+        opacity: 0.85;
+    }
+</style>
+
+<!-- Debug -->
+<MudPaper Class="pa-2 mb-2">
+    <MudText>scrollLeft: @scrollLeft</MudText>
+    <MudText>StartIndex: @StartIndex</MudText>
+    <MudText>EndIndex: @EndIndex</MudText>
+</MudPaper>
+
+<div class="layout">
+
+    <!-- ✅ 左侧固定列 -->
+    <div class="left">
+        <div class="header"></div>
+
+        @foreach (var row in Rows)
+        {
+            <div class="row">@row.Name</div>
+        }
+    </div>
+
+    <!-- ✅ 右侧虚拟滚动 -->
+    <div class="right" @ref="ScrollRef" @onscroll="OnScroll">
+
+        <div class="grid" style="width:@(TotalWidth)px">
+
+            <!-- 左 padding -->
+            <div style="width:@(StartIndex* ColumnWidth)px"></div>
+
+            <!-- 可视列 -->
+            @foreach (var date in VisibleDates)
+            {
+                <div class="column">
+                    <div class="header">@date.ToString("dd/MM")</div>
+
+                    @foreach (var row in Rows)
+                    {
+                        <div class="cell"
+                             @ref="cellRefs[(row.Id, date)]"
+                             @ondragover:preventDefault
+                             @ondrop="e => OnDrop(e, row, date)">
+
+                            @foreach (var ev in GetEvents(row, date))
+                            {
+                                <div class="event"
+                                     draggable="true"
+                                     @ondragstart="() => OnDragStart(ev)"
+                                     style="
+                                                    height:@GetHeight(ev)%;
+                                                    bottom:@GetBottom(ev)%;">
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+
+            <!-- 右 padding -->
+            <div style="width:@((Dates.Count - EndIndex) * ColumnWidth)px"></div>
+
+        </div>
+
+    </div>
+
+</div>
+
+@code {
+
+    const int ColumnWidth = 120;
+    const int Buffer = 3;
+
+    List<PlanningRow> Rows = new();
+    List<DateTime> Dates = new();
+    List<PlanningEvent> Events = new();
+
+    protected override void OnInitialized()
+    {
+        Rows = new()
+        {
+            new PlanningRow { Id = 1, Name = "Alice", Type = RowType.Person },
+            new PlanningRow { Id = 2, Name = "Bob", Type = RowType.Person },
+            new PlanningRow { Id = 101, Name = "Machine A", Type = RowType.Resource }
+        };
+
+        Dates = Enumerable.Range(0, 200)
+            .Select(i => DateTime.Today.AddDays(i))
+            .ToList();
+
+        Events = new()
+        {
+            new PlanningEvent
+            {
+                Id = 1,
+                PersonId = 1,
+                Date = DateTime.Today,
+                Start = new TimeSpan(9,0,0),
+                End = new TimeSpan(12,0,0)
+            }
+        };
+    }
+
+    ElementReference ScrollRef;
+
+    int StartIndex = 0;
+    int EndIndex = 10;
+
+    double scrollLeft;
+
+    List<DateTime> VisibleDates =>
+        Dates.Skip(StartIndex).Take(EndIndex - StartIndex).ToList();
+
+    int TotalWidth => Dates.Count * ColumnWidth;
+
+    async Task OnScroll()
+    {
+        scrollLeft = await JS.InvokeAsync<double>("getScrollLeft", ScrollRef);
+        var width = await JS.InvokeAsync<double>("getClientWidth", ScrollRef);
+
+        int first = (int)(scrollLeft / ColumnWidth);
+        int count = (int)(width / ColumnWidth);
+
+        StartIndex = Math.Max(0, first - Buffer);
+        EndIndex = Math.Min(Dates.Count, first + count + Buffer);
+
+        StateHasChanged();
+    }
+
+    // ===== 拖拽 =====
+
+    static PlanningEvent? DraggingEvent;
+
+    void OnDragStart(PlanningEvent ev)
+    {
+        DraggingEvent = ev;
+    }
+
+    async Task OnDrop(DragEventArgs e, PlanningRow row, DateTime date)
+    {
+        if (DraggingEvent == null) return;
+
+        var rect = await JS.InvokeAsync<ElementRect>("getElementRect", cellRefs[(row.Id, date)]);
+
+        var percent = Math.Clamp((e.ClientY - rect.Top) / rect.Height, 0, 1);
+
+        var duration = DraggingEvent.End - DraggingEvent.Start;
+
+        var startHour = 9 + percent * 8;
+
+        DraggingEvent.Start = TimeSpan.FromHours(Math.Floor(startHour));
+        DraggingEvent.End = DraggingEvent.Start + duration;
+        DraggingEvent.Date = date;
+
+        if (row.Type == RowType.Person)
+            DraggingEvent.PersonId = row.Id;
+        else
+            DraggingEvent.ResourceId = row.Id;
+
+        DraggingEvent = null;
+
+        StateHasChanged();
+    }
+
+    Dictionary<(int, DateTime), ElementReference> cellRefs = new();
+
+    IEnumerable<PlanningEvent> GetEvents(PlanningRow row, DateTime date)
+    {
+        return Events.Where(e =>
+            e.Date.Date == date.Date &&
+            ((row.Type == RowType.Person && e.PersonId == row.Id) ||
+             (row.Type == RowType.Resource && e.ResourceId == row.Id)));
+    }
+
+    double GetHeight(PlanningEvent ev)
+        => ((ev.End - ev.Start).TotalHours / 8.0) * 100;
+
+    double GetBottom(PlanningEvent ev)
+        => ((ev.Start.TotalHours - 9) / 8.0) * 100;
+
+    [Inject] IJSRuntime JS { get; set; }
+
+    public class ElementRect
+    {
+        public double Top { get; set; }
+        public double Height { get; set; }
+    }
+
+    public enum RowType { Person, Resource }
+
+    public class PlanningRow
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public RowType Type { get; set; }
+    }
+
+    public class PlanningEvent
+    {
+        public int Id { get; set; }
+        public int PersonId { get; set; }
+        public int ResourceId { get; set; }
+        public DateTime Date { get; set; }
+        public TimeSpan Start { get; set; }
+        public TimeSpan End { get; set; }
+    }
+}
